@@ -54,37 +54,22 @@ const estrutura = {
 export default function Detalhes() {
   const params = useLocalSearchParams()
   const dados: Dados = JSON.parse(params.dados as string)
-
-  function corNota(nota: number) {
-    if (nota === 1) return "#dc2626"
-    if (nota === 2) return "#f59e0b"
-    if (nota === 3) return "#16a34a"
-    return "#9ca3af"
-  }
+  const auditor = (params.auditor as string) || ""
+  const responsavel = (params.responsavel as string) || ""
+  const loja = (params.loja as string) || ""
+  const data = (params.data as string) || ""
 
   let soma = 0
   let total = 0
-  let problemas: string[] = []
-  let atencao: string[] = []
-  let ok: string[] = []
 
   Object.entries(estrutura).forEach(([secao, itens]) => {
     itens.forEach((item) => {
       const chave = `${secao}-${item}`
       const nota = dados[chave]
-
       total++
-
-      if (nota === 1) {
-        soma += 0
-        problemas.push(`${secao} - ${item}`)
-      } else if (nota === 2) {
-        soma += 50
-        atencao.push(`${secao} - ${item}`)
-      } else if (nota === 3) {
-        soma += 100
-        ok.push(`${secao} - ${item}`)
-      }
+      if (nota === 1) soma += 0
+      else if (nota === 2) soma += 50
+      else if (nota === 3) soma += 100
     })
   })
 
@@ -92,53 +77,42 @@ export default function Detalhes() {
 
   let status = "REPROVADO"
   let statusColor = "#dc2626"
+  if (notaFinal >= 90) { status = "APROVADO"; statusColor = "#16a34a" }
+  else if (notaFinal >= 70) { status = "ATENÇÃO"; statusColor = "#f59e0b" }
 
-  if (notaFinal >= 90) {
-    status = "APROVADO"
-    statusColor = "#16a34a"
-  } else if (notaFinal >= 70) {
-    status = "ATENÇÃO"
-    statusColor = "#f59e0b"
-  }
-
-  // ✅ PDF PROFISSIONAL COM EMOJIS
   async function gerarPDF() {
     const html = `
       <html>
-        <body style="font-family: Arial; padding: 20px;">
+        <body style="font-family: Arial; padding: 24px; color: #111;">
 
-          <h1 style="color:#111">Relatório de Auditoria</h1>
+          <h1 style="color:#111; margin-bottom: 4px;">Relatório de Auditoria</h1>
+          <hr style="border: 1px solid #e5e7eb; margin-bottom: 16px;" />
 
-          <h2>Nota Final: ${notaFinal}/100</h2>
-          <h3>Status: ${status}</h3>
+          ${loja ? `<p style="margin: 4px 0;"><strong>Loja:</strong> ${loja}</p>` : ""}
+          ${data ? `<p style="margin: 4px 0;"><strong>Data:</strong> ${data}</p>` : ""}
+          ${auditor ? `<p style="margin: 4px 0;"><strong>Auditor:</strong> ${auditor}</p>` : ""}
+          ${responsavel ? `<p style="margin: 4px 0;"><strong>Responsável:</strong> ${responsavel}</p>` : ""}
 
-          <hr/>
+          <div style="margin: 20px 0; padding: 16px; background: #f9fafb; border-left: 5px solid ${statusColor}; border-radius: 4px;">
+            <h2 style="margin: 0 0 4px 0;">Nota Final: ${notaFinal}/100</h2>
+            <p style="margin: 0; font-size: 18px; color: ${statusColor}; font-weight: bold;">${status}</p>
+          </div>
 
+          <hr style="border: 1px solid #e5e7eb;" />
           <h3>Itens Avaliados</h3>
 
           ${Object.entries(estrutura)
-            .map(([secao, itens]) => {
-              return `
-                <h3 style="margin-top:15px">${secao}</h3>
-                ${itens
-                  .map((item) => {
-                    const nota = dados[`${secao}-${item}`]
-
-                    let icon = "○"
-                    if (nota === 1) icon = "❌"
-                    if (nota === 2) icon = "⚠️"
-                    if (nota === 3) icon = "✅"
-
-                    return `
-                      <p style="margin:4px 0">
-                        ${icon} ${item}
-                      </p>
-                    `
-                  })
-                  .join("")}
-              `
-            })
-            .join("")}
+            .map(([secao, itens]) => `
+              <h3 style="margin-top: 18px; color: #374151;">${secao}</h3>
+              ${itens.map((item) => {
+                const nota = dados[`${secao}-${item}`]
+                let icon = "○"
+                if (nota === 1) icon = "❌"
+                if (nota === 2) icon = "⚠️"
+                if (nota === 3) icon = "✅"
+                return `<p style="margin: 4px 0;">${icon} ${item}</p>`
+              }).join("")}
+            `).join("")}
 
         </body>
       </html>
@@ -151,7 +125,7 @@ export default function Detalhes() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f3f4f6" }}>
 
-      {/* RESUMO */}
+      {/* Card de nota */}
       <View style={{
         margin: 20,
         backgroundColor: "#fff",
@@ -161,15 +135,32 @@ export default function Detalhes() {
         borderLeftColor: statusColor,
       }}>
         <Text style={{ fontSize: 16 }}>Nota final</Text>
-        <Text style={{ fontSize: 34, fontWeight: "bold" }}>
-          {notaFinal}/100
-        </Text>
-        <Text style={{ fontSize: 18, color: statusColor, fontWeight: "bold" }}>
-          {status}
-        </Text>
+        <Text style={{ fontSize: 34, fontWeight: "bold" }}>{notaFinal}/100</Text>
+        <Text style={{ fontSize: 18, color: statusColor, fontWeight: "bold" }}>{status}</Text>
       </View>
 
-      {/* BOTÃO PDF */}
+      {/* Informações da auditoria */}
+      {(loja || auditor || responsavel || data) && (
+        <View style={{
+          marginHorizontal: 20,
+          marginBottom: 12,
+          backgroundColor: "#fff",
+          padding: 14,
+          borderRadius: 12,
+          gap: 4,
+        }}>
+          {!!loja && <Text style={{ fontSize: 15, color: "#374151" }}>🏪 {loja}</Text>}
+          {!!data && <Text style={{ fontSize: 14, color: "#6b7280" }}>📅 {data}</Text>}
+          {!!auditor && (
+            <Text style={{ fontSize: 15, color: "#374151" }}>👤 Auditor: {auditor}</Text>
+          )}
+          {!!responsavel && (
+            <Text style={{ fontSize: 15, color: "#374151" }}>🙋 Responsável: {responsavel}</Text>
+          )}
+        </View>
+      )}
+
+      {/* Exportar PDF */}
       <TouchableOpacity
         onPress={gerarPDF}
         style={{
@@ -186,18 +177,11 @@ export default function Detalhes() {
         </Text>
       </TouchableOpacity>
 
-      {/* LISTA */}
+      {/* Itens */}
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         {Object.entries(estrutura).map(([secao, itens]) => (
           <View key={secao} style={{ marginBottom: 25 }}>
-
-            <Text style={{
-              fontSize: 20,
-              fontWeight: "600",
-              marginBottom: 10,
-            }}>
-              {secao}
-            </Text>
+            <Text style={{ fontSize: 20, fontWeight: "600", marginBottom: 10 }}>{secao}</Text>
 
             {itens.map((item) => {
               const chave = `${secao}-${item}`
@@ -207,19 +191,9 @@ export default function Detalhes() {
               let bg = "#f3f4f6"
               let color = "#9ca3af"
 
-              if (nota === 1) {
-                icon = "❌"
-                bg = "#fee2e2"
-                color = "#dc2626"
-              } else if (nota === 2) {
-                icon = "⚠️"
-                bg = "#fef3c7"
-                color = "#b45309"
-              } else if (nota === 3) {
-                icon = "✅"
-                bg = "#dcfce7"
-                color = "#16a34a"
-              }
+              if (nota === 1) { icon = "❌"; bg = "#fee2e2"; color = "#dc2626" }
+              else if (nota === 2) { icon = "⚠️"; bg = "#fef3c7"; color = "#b45309" }
+              else if (nota === 3) { icon = "✅"; bg = "#dcfce7"; color = "#16a34a" }
 
               return (
                 <View
@@ -233,13 +207,8 @@ export default function Detalhes() {
                     marginBottom: 8,
                   }}
                 >
-                  <Text style={{ fontSize: 18, marginRight: 10, color }}>
-                    {icon}
-                  </Text>
-
-                  <Text style={{ fontSize: 16, color }}>
-                    {item}
-                  </Text>
+                  <Text style={{ fontSize: 18, marginRight: 10, color }}>{icon}</Text>
+                  <Text style={{ fontSize: 16, color }}>{item}</Text>
                 </View>
               )
             })}

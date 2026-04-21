@@ -43,7 +43,7 @@ export default function Dashboard() {
     setHistorico(lista.reverse())
   }
 
-  // 📅 FILTRO DE PERÍODO
+  
   const dadosFiltrados = useMemo(() => {
     const agora = new Date()
 
@@ -70,7 +70,7 @@ export default function Dashboard() {
     })
   }, [historico, filtro])
 
-  // 📊 médias
+  
   const medias = useMemo(() => {
     return dadosFiltrados.map((item) => {
       const valores = Object.values(item.dados)
@@ -79,14 +79,14 @@ export default function Dashboard() {
     })
   }, [dadosFiltrados])
 
-  // 📈 média geral
+   
   const mediaGeral = useMemo(() => {
     if (!medias.length) return 0
     const soma = medias.reduce((a, b) => a + b, 0)
     return (soma / medias.length).toFixed(2)
   }, [medias])
 
-  // 🥧 distribuição
+  
   const distribuicao = useMemo(() => {
     return [
       {
@@ -121,7 +121,7 @@ export default function Dashboard() {
           Dashboard 📈
         </Text>
 
-        {/* 🔥 FILTRO */}
+         
         <View style={{
           flexDirection: "row",
           marginBottom: 15,
@@ -157,7 +157,7 @@ export default function Dashboard() {
           })}
         </View>
 
-        {/* RESUMO */}
+       
         <View style={{
           backgroundColor: "#fff",
           padding: 20,
@@ -177,7 +177,7 @@ export default function Dashboard() {
           </Text>
         </View>
 
-        {/* TROCA DE GRÁFICO */}
+        
         <View style={{
           flexDirection: "row",
           marginBottom: 15,
@@ -220,7 +220,7 @@ export default function Dashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* GRÁFICO LINHA */}
+      
         {tipoGrafico === "linha" && medias.length > 0 && (
           <LineChart
             data={{
@@ -240,7 +240,7 @@ export default function Dashboard() {
           />
         )}
 
-        {/* GRÁFICO PIZZA */}
+      
         {tipoGrafico === "pizza" && medias.length > 0 && (
           <PieChart
             data={distribuicao}
