@@ -1,21 +1,27 @@
-import { useState, useEffect, useRef, useCallback } from "react"
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Animated,
-  TextInput,
-  Alert,
-} from "react-native"
-import { useRouter } from "expo-router"
-import { useFocusEffect } from "expo-router"
-import Toast from "react-native-toast-message"
-import { collection, addDoc } from "firebase/firestore"
 import { db } from "@/src/services/firebase"
-import AsyncStorage from "@react-native-async-storage/async-storage"
 import { estruturaPadrao, getEstrutura, salvarEstrutura } from "@/src/services/utils/estrutura"
+import { useFocusEffect, useRouter } from "expo-router"
+import { addDoc, collection } from "firebase/firestore"
+import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  Alert,
+  Animated,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native"
+import Toast from "react-native-toast-message"
+
+function dataHoje() {
+  const hoje = new Date()
+  const dia = String(hoje.getDate()).padStart(2, "0")
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0")
+  const ano = String(hoje.getFullYear()).slice(-2)
+  return `${dia}/${mes}/${ano}`
+}
 
 export default function Checklist() {
   const router = useRouter()
@@ -26,10 +32,11 @@ export default function Checklist() {
   const [modoEdicao, setModoEdicao] = useState(false)
 
   const [loja, setLoja] = useState("")
-  const [data, setData] = useState("")
+  const [data, setData] = useState(dataHoje())
   const [auditor, setAuditor] = useState("")
   const [responsavel, setResponsavel] = useState("")
   const [preenchedor, setPreenchedor] = useState("")
+  const [observacoes, setObservacoes] = useState("")
 
   const menuAnim = useRef(new Animated.Value(-260)).current
   const fadeBotao = useRef(new Animated.Value(0)).current
@@ -59,37 +66,107 @@ export default function Checklist() {
     return "#22c55e"
   }
 
+  function limparTudo() {
+    Alert.alert(
+      "Limpar checklist",
+      "Apagar todos os dados preenchidos e começar do zero?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Limpar",
+          style: "destructive",
+          onPress: () => {
+            setLoja("")
+            setData(dataHoje())
+            setAuditor("")
+            setResponsavel("")
+            setPreenchedor("")
+            setObservacoes("")
+            setDados({})
+          },
+        },
+      ]
+    )
+  }
+
   async function salvarAuditoria() {
-    try {
-      await addDoc(collection(db, "auditorias"), {
-        loja,
-        data,
-        auditor,
-        responsavel,
-        preenchedor,
-        timestamp: new Date().toISOString(),
-        dados: { ...dados },
-      })
+    // ── Validação obrigatória ──────────────────────────────────────────────
+    const camposFaltando: string[] = []
+    if (!loja.trim()) camposFaltando.push("Nome da loja")
+    if (!data.trim()) camposFaltando.push("Data")
+    if (!auditor.trim()) camposFaltando.push("Auditor")
 
-      setLoja("")
-      setData("")
-      setAuditor("")
-      setResponsavel("")
-      setPreenchedor("")
-      setDados({})
-
-      Toast.show({
-        type: "success",
-        text1: "✔ SALVO NA NUVEM",
-        text2: "Auditoria enviada com sucesso",
-      })
-    } catch (error: any) {
-      Toast.show({
-        type: "error",
-        text1: "Erro Firebase",
-        text2: error?.message || "Falha ao salvar",
-      })
+    if (camposFaltando.length > 0) {
+      Alert.alert(
+        "Campos obrigatórios",
+        `Preencha antes de salvar:\n\n• ${camposFaltando.join("\n• ")}`,
+        [{ text: "OK" }]
+      )
+      return
     }
+
+    // ── Confirmação ────────────────────────────────────────────────────────
+    const totalItens = Object.values(estrutura).reduce((a, b) => a + b.length, 0)
+    const avaliados = Object.values(dados).filter((v) => v > 0).length
+    const criticos = Object.values(dados).filter((v) => v === 1).length
+
+    Alert.alert(
+      "Confirmar Auditoria",
+      `Loja: ${loja}\nData: ${data}\nAuditor: ${auditor}\n\n${avaliados}/${totalItens} itens avaliados${criticos > 0 ? `\n⚠️ ${criticos} item(ns) crítico(s)` : ""}\n\nDeseja salvar e gerar o relatório?`,
+      [
+        { text: "Revisar", style: "cancel" },
+        {
+          text: "Salvar",
+          onPress: async () => {
+            try {
+              await addDoc(collection(db, "auditorias"), {
+                loja,
+                data,
+                auditor,
+                responsavel,
+                preenchedor,
+                observacoes,
+                timestamp: new Date().toISOString(),
+                dados: { ...dados },
+              })
+
+              Toast.show({
+                type: "success",
+                text1: "✔ SALVO NA NUVEM",
+                text2: "Auditoria enviada com sucesso",
+              })
+
+              router.push({
+                pathname: "/detalhes",
+                params: {
+                  dados: JSON.stringify(dados),
+                  loja,
+                  data,
+                  auditor,
+                  responsavel,
+                  observacoes,
+                },
+              })
+
+              setLoja("")
+              setData(dataHoje())
+              setAuditor("")
+              setResponsavel("")
+              setPreenchedor("")
+              setObservacoes("")
+              setDados({})
+
+            } catch (error: any) {
+              Toast.show({
+                type: "error",
+                text1: "Erro Firebase",
+                text2: error?.message || "Falha ao salvar",
+              })
+            }
+          },
+        },
+      ]
+    )
   }
 
   // ─── Edição de tópicos ───────────────────────────────────────────────────────
@@ -137,11 +214,13 @@ export default function Checklist() {
     })
   }
 
-  // ─── Animação botão salvar ───────────────────────────────────────────────────
+  // ─── Métricas em tempo real ──────────────────────────────────────────────────
 
+  const totalItens = Object.values(estrutura).reduce((a, b) => a + b.length, 0)
   const itensMarcados = Object.values(dados).filter((v) => v > 0).length
-  const somaNotas = Object.values(dados).reduce((a, b) => a + b, 0)
-  const media = itensMarcados ? (somaNotas / itensMarcados).toFixed(2) : "0"
+  const itensCriticos = Object.values(dados).filter((v) => v === 1).length
+  const itensAtencao = Object.values(dados).filter((v) => v === 2).length
+  const progresso = totalItens ? Math.round((itensMarcados / totalItens) * 100) : 0
 
   useEffect(() => {
     const anterior = prevItens.current
@@ -190,7 +269,28 @@ export default function Checklist() {
       }}>
         <Text style={{ fontSize: 28, fontWeight: "bold" }}>Checklist 📝</Text>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+
+          {/* Botão limpar */}
+          {!modoEdicao && itensMarcados > 0 && (
+            <TouchableOpacity
+              onPress={limparTudo}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                backgroundColor: "#fff",
+                borderWidth: 1,
+                borderColor: "#fca5a5",
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 8,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "#ef4444" }}>🗑 Limpar</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Botão modo edição */}
           <TouchableOpacity
             onPress={() => modoEdicao ? cancelarEdicao() : setModoEdicao(true)}
@@ -248,36 +348,58 @@ export default function Checklist() {
               borderRadius: 8,
             }}
           >
-            <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>
-              Salvar tópicos
-            </Text>
+            <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>Salvar tópicos</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Campos de identificação — ocultos no modo edição */}
+      {/* Campos de identificação */}
       {!modoEdicao && (
         <View style={{ paddingHorizontal: 20, gap: 8, marginBottom: 4 }}>
           <TextInput
-            placeholder="Nome da loja"
+            placeholder="Nome da loja *"
             placeholderTextColor="#9ca3af"
             value={loja}
             onChangeText={setLoja}
-            style={{ backgroundColor: "#fff", padding: 12, borderRadius: 10, color: "#000", fontSize: 15 }}
+            style={{
+              backgroundColor: "#fff",
+              padding: 12,
+              borderRadius: 10,
+              color: "#000",
+              fontSize: 15,
+              borderWidth: !loja.trim() ? 1.5 : 0,
+              borderColor: "#fca5a5",
+            }}
           />
           <TextInput
-            placeholder="Data"
+            placeholder="Data *"
             placeholderTextColor="#9ca3af"
             value={data}
             onChangeText={setData}
-            style={{ backgroundColor: "#fff", padding: 12, borderRadius: 10, color: "#000", fontSize: 15 }}
+            style={{
+              backgroundColor: "#fff",
+              padding: 12,
+              borderRadius: 10,
+              color: "#000",
+              fontSize: 15,
+              borderWidth: !data.trim() ? 1.5 : 0,
+              borderColor: "#fca5a5",
+            }}
           />
           <TextInput
-            placeholder="Auditor (quem fez a auditoria)"
+            placeholder="Auditor (quem fez a auditoria) *"
             placeholderTextColor="#9ca3af"
             value={auditor}
             onChangeText={setAuditor}
-            style={{ backgroundColor: "#fff", padding: 12, borderRadius: 10, color: "#000", fontSize: 15 }}
+            style={{
+              backgroundColor: "#fff",
+              padding: 12,
+              borderRadius: 10,
+              color: "#000",
+              fontSize: 15,
+              borderWidth: !auditor.trim() ? 1.5 : 0,
+              borderColor: "#fca5a5",
+            }}
           />
           <TextInput
             placeholder="Responsável (quem respondeu)"
@@ -296,11 +418,44 @@ export default function Checklist() {
         </View>
       )}
 
-      {/* Média */}
+      {/* ── Barra de progresso + indicadores ── */}
       {!modoEdicao && (
-        <Text style={{ paddingHorizontal: 20, fontSize: 16, color: "#6b7280", marginVertical: 8 }}>
-          Média geral: <Text style={{ fontWeight: "600", color: "#111827" }}>{media}/3</Text>
-        </Text>
+        <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
+
+          {/* Linha de texto */}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+            <Text style={{ fontSize: 13, color: "#6b7280" }}>
+              Progresso:{" "}
+              <Text style={{ fontWeight: "700", color: "#111827" }}>
+                {itensMarcados}/{totalItens}
+              </Text>
+              {" "}itens
+            </Text>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              {itensCriticos > 0 && (
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#dc2626" }}>
+                  ❌ {itensCriticos} crítico{itensCriticos > 1 ? "s" : ""}
+                </Text>
+              )}
+              {itensAtencao > 0 && (
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#b45309" }}>
+                  ⚠️ {itensAtencao} atenção{itensAtencao > 1 ? "ões" : ""}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* Barra de progresso */}
+          <View style={{ height: 6, backgroundColor: "#e5e7eb", borderRadius: 4 }}>
+            <View style={{
+              height: 6,
+              borderRadius: 4,
+              backgroundColor: progresso === 100 ? "#16a34a" : "#3b82f6",
+              width: `${progresso}%`,
+            }} />
+          </View>
+
+        </View>
       )}
 
       {/* Lista de itens */}
@@ -308,13 +463,7 @@ export default function Checklist() {
         {Object.entries(estrutura).map(([secao, itens]) => (
           <View key={secao} style={{ marginBottom: 28 }}>
 
-            {/* Cabeçalho da seção */}
-            <View style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 10,
-              gap: 8,
-            }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 8 }}>
               <Text style={{ fontSize: 20, fontWeight: "700", color: "#111827", flex: 1 }}>
                 {secao}
               </Text>
@@ -328,9 +477,7 @@ export default function Checklist() {
                     borderRadius: 6,
                   }}
                 >
-                  <Text style={{ color: "#0369a1", fontSize: 13, fontWeight: "600" }}>
-                    + Item
-                  </Text>
+                  <Text style={{ color: "#0369a1", fontSize: 13, fontWeight: "600" }}>+ Item</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -353,7 +500,6 @@ export default function Checklist() {
                     borderColor: modoEdicao ? "#fcd34d" : "transparent",
                   }}
                 >
-                  {/* Nota / indicador */}
                   {!modoEdicao ? (
                     <TouchableOpacity
                       onPress={() => toggleItem(secao, item)}
@@ -374,25 +520,13 @@ export default function Checklist() {
                     </TouchableOpacity>
                   ) : (
                     <>
-                      {/* Indicador de edição */}
-                      <View style={{
-                        width: 4,
-                        alignSelf: "stretch",
-                        backgroundColor: "#f59e0b",
-                      }} />
-
+                      <View style={{ width: 4, alignSelf: "stretch", backgroundColor: "#f59e0b" }} />
                       <TextInput
                         value={item}
                         onChangeText={(text) => editarItem(secao, index, text)}
-                        style={{
-                          flex: 1,
-                          fontSize: 15,
-                          color: "#111827",
-                          padding: 14,
-                        }}
+                        style={{ flex: 1, fontSize: 15, color: "#111827", padding: 14 }}
                         multiline
                       />
-
                       <TouchableOpacity
                         onPress={() => removerItem(secao, index)}
                         style={{
@@ -413,7 +547,7 @@ export default function Checklist() {
           </View>
         ))}
 
-        {/* Botão restaurar padrão (só no modo edição) */}
+        {/* Botão restaurar padrão */}
         {modoEdicao && (
           <TouchableOpacity
             onPress={() =>
@@ -442,6 +576,45 @@ export default function Checklist() {
             <Text style={{ color: "#ef4444", fontWeight: "600" }}>Restaurar tópicos padrão</Text>
           </TouchableOpacity>
         )}
+
+        {/* Campo de Observações */}
+        {!modoEdicao && (
+          <View style={{
+            marginTop: 8,
+            backgroundColor: "#fff",
+            borderRadius: 12,
+            padding: 16,
+            shadowColor: "#000",
+            shadowOpacity: 0.04,
+            shadowRadius: 6,
+            elevation: 2,
+          }}>
+            <Text style={{ fontSize: 16, fontWeight: "600", color: "#111827", marginBottom: 10 }}>
+              Observações
+            </Text>
+            <TextInput
+              value={observacoes}
+              onChangeText={setObservacoes}
+              placeholder="Registre aqui observações relevantes sobre a auditoria, pontos de atenção ou elogios..."
+              placeholderTextColor="#9ca3af"
+              multiline
+              numberOfLines={5}
+              textAlignVertical="top"
+              style={{
+                backgroundColor: "#f9fafb",
+                borderWidth: 1,
+                borderColor: "#e5e7eb",
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 15,
+                color: "#111827",
+                minHeight: 120,
+                lineHeight: 22,
+              }}
+            />
+          </View>
+        )}
+
       </ScrollView>
 
       {/* Botão salvar auditoria */}
@@ -460,7 +633,9 @@ export default function Checklist() {
             onPress={salvarAuditoria}
             style={{ backgroundColor: "#22c55e", padding: 18, borderRadius: 12, alignItems: "center" }}
           >
-            <Text style={{ color: "#fff", fontSize: 20, fontWeight: "bold" }}>Salvar Auditoria</Text>
+            <Text style={{ color: "#fff", fontSize: 20, fontWeight: "bold" }}>
+              Salvar Auditoria · {progresso}%
+            </Text>
           </TouchableOpacity>
         </Animated.View>
       )}

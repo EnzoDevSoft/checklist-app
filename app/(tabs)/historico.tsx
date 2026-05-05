@@ -1,15 +1,15 @@
-import { useState, useCallback, useRef, useEffect } from "react"
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  SafeAreaView,
-  Animated,
-} from "react-native"
+import { db } from "@/src/services/firebase"
 import { useFocusEffect, useRouter } from "expo-router"
 import { collection, getDocs } from "firebase/firestore"
-import { db } from "@/src/services/firebase"
+import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  Animated,
+  FlatList,
+  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native"
 
 type Auditoria = {
   id: string
@@ -53,6 +53,7 @@ function AnimatedCard({ children, index }: any) {
 export default function Historico() {
   const [historico, setHistorico] = useState<Auditoria[]>([])
   const [filtro, setFiltro] = useState<"hoje" | "7dias" | "todos">("todos")
+  const [lojaSelecionada, setLojaSelecionada] = useState("")
   const router = useRouter()
 
   useFocusEffect(
@@ -90,6 +91,11 @@ export default function Historico() {
       console.log("Erro ao carregar histórico:", error)
     }
   }
+const lojasUnicas = [...new Set(
+  historico
+    .map(item => item.loja)
+    .filter((loja): loja is string => !!loja)
+)]
 
   function calcularMedia(dados: Record<string, number>) {
     const valores = Object.values(dados || {})
@@ -99,17 +105,25 @@ export default function Historico() {
   }
 
   function filtrar() {
-    const hoje = new Date()
-    return historico.filter((item) => {
-      const dataItem = new Date(item.timestamp || item.id)
-      if (filtro === "hoje") return dataItem.toDateString() === hoje.toDateString()
-      if (filtro === "7dias") {
-        const diff = (hoje.getTime() - dataItem.getTime()) / (1000 * 60 * 60 * 24)
-        return diff <= 7
-      }
-      return true
-    })
-  }
+  const hoje = new Date()
+
+  return historico.filter((item) => {
+    const dataItem = new Date(item.timestamp || item.id)
+
+    const filtroData =
+      filtro === "hoje"
+        ? dataItem.toDateString() === hoje.toDateString()
+        : filtro === "7dias"
+        ? (hoje.getTime() - dataItem.getTime()) / (1000 * 60 * 60 * 24) <= 7
+        : true
+
+    const filtroLoja = lojaSelecionada
+      ? item.loja === lojaSelecionada
+      : true
+
+    return filtroData && filtroLoja
+  })
+}
 
   const dadosFiltrados = filtrar()
 
@@ -181,36 +195,39 @@ export default function Historico() {
 
       {/* Filtros */}
       <View style={{
-        marginHorizontal: 20,
-        marginBottom: 15,
-        backgroundColor: "#e5e7eb",
-        borderRadius: 12,
-        flexDirection: "row",
-        padding: 4,
-      }}>
-        {[
-          { label: "Hoje", value: "hoje" },
-          { label: "7 dias", value: "7dias" },
-          { label: "Todos", value: "todos" },
-        ].map((f) => {
-          const ativo = filtro === f.value
-          return (
-            <TouchableOpacity
-              key={f.value}
-              onPress={() => setFiltro(f.value as any)}
-              style={{
-                flex: 1,
-                paddingVertical: 10,
-                borderRadius: 10,
-                backgroundColor: ativo ? "#fff" : "transparent",
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ fontWeight: "600" }}>{f.label}</Text>
-            </TouchableOpacity>
-          )
-        })}
-      </View>
+  marginHorizontal: 20,
+  marginBottom: 10,
+}}>
+  <Text style={{ marginBottom: 6, fontWeight: "600" }}>
+    Filtrar por loja
+  </Text>
+
+  <FlatList
+    data={["", ...lojasUnicas]}
+    horizontal
+    keyExtractor={(item, index) => index.toString()}
+    renderItem={({ item }) => {
+      const ativo = lojaSelecionada === item
+
+      return (
+        <TouchableOpacity
+          onPress={() => setLojaSelecionada(item || "")}
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            backgroundColor: ativo ? "#22c55e" : "#fff",
+            borderRadius: 8,
+            marginRight: 8,
+          }}
+        >
+          <Text style={{ color: ativo ? "#fff" : "#000" }}>
+            {item || "Todas"}
+          </Text>
+        </TouchableOpacity>
+      )
+    }}
+  />
+</View>
 
       <FlatList
         data={dadosFiltrados}
