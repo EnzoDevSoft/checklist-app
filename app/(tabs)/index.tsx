@@ -157,12 +157,13 @@ export default function Checklist() {
               setDados({})
 
             } catch (error: any) {
-              Toast.show({
-                type: "error",
-                text1: "Erro Firebase",
-                text2: error?.message || "Falha ao salvar",
-              })
-            }
+  console.log("ERRO FIREBASE:", error)
+  Alert.alert(
+    "Erro ao salvar",
+    error?.message || "Falha ao conectar com o Firebase. Verifique sua conexão e as regras do Firestore.",
+    [{ text: "OK" }]
+  )
+}
           },
         },
       ]
