@@ -91,11 +91,14 @@ export default function Historico() {
       console.log("Erro ao carregar histórico:", error)
     }
   }
-const lojasUnicas = [...new Set(
-  historico
-    .map(item => item.loja)
-    .filter((loja): loja is string => !!loja)
-)]
+const LOJAS_FIXAS = ["Aga Center Kan", "Vila Nova", "Barro Vermelho"]
+
+const lojasUnicas = [
+  ...new Set([
+    ...LOJAS_FIXAS,
+    ...historico.map(item => item.loja).filter((loja): loja is string => !!loja),
+  ])
+]
 
   function calcularMedia(dados: Record<string, number>) {
     const valores = Object.values(dados || {})

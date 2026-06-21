@@ -11,60 +11,32 @@ import {
 
 type Dados = Record<string, number>
 
-const estrutura = {
-  "Área Externa": [
-    "Fachada limpa e conservada",
-    "Placas e comunicação visível",
-    "Calçada limpa e segura",
-    "Vitrines organizadas e atualizadas",
-    "Portas e vidros limpos",
-    "Materiais promocionais visíveis",
-  ],
-  "Área de Vendas (Interna)": [
-    "Iluminação adequada",
-    "Ar-condicionado funcionando",
-    "Piso limpo e conservado",
-    "Tapete em boas condições",
-    "Cestos abastecidos e com preço",
-    "Prateleiras limpas",
-    "Produtos alinhados (frente correta)",
-    "Espaços vazios (rupturas)",
-    "Etiquetas de preço corretas",
-    "Balcão organizado",
-    "Câmeras funcionando",
-  ],
-  "Conservação de Produtos": [
-    "Geladeiras funcionando corretamente",
-    "Temperatura controlada",
-    "Freezers (sorvetes, etc.)",
-    "Produtos armazenados corretamente",
-    "Controle de validade visível",
-  ],
-  "Área Técnica / Sanitária": [
-    "Cozinha limpa",
-    "Geladeiras internas organizadas",
-    "Micro-ondas limpo",
-    "Água disponível",
-    "Banheiros limpos e abastecidos",
-    "Sala de motoboys organizada",
-  ],
-  "Equipe": [
-    "Funcionários com crachá",
-    "Uniforme completo",
-    "Aparência adequada",
-    "Postura profissional",
-    "Equipe completa no turno",
-  ],
+// Reconstrói a estrutura (seções → itens) a partir das chaves salvas no Firebase.
+// A chave tem formato "Seção-Nome do item", onde o separador é o PRIMEIRO traço.
+function reconstruirEstrutura(dados: Dados): Record<string, string[]> {
+  const estrutura: Record<string, string[]> = {}
+  Object.keys(dados).forEach((chave) => {
+    const primeiroTraco = chave.indexOf("-")
+    if (primeiroTraco === -1) return
+    const secao = chave.slice(0, primeiroTraco)
+    const item  = chave.slice(primeiroTraco + 1)
+    if (!estrutura[secao]) estrutura[secao] = []
+    if (!estrutura[secao].includes(item)) estrutura[secao].push(item)
+  })
+  return estrutura
 }
 
 export default function Detalhes() {
   const params = useLocalSearchParams()
   const dados: Dados = JSON.parse(params.dados as string)
-  const auditor = (params.auditor as string) || ""
+  const auditor    = (params.auditor    as string) || ""
   const responsavel = (params.responsavel as string) || ""
-  const loja = (params.loja as string) || ""
-  const data = (params.data as string) || ""
+  const loja       = (params.loja       as string) || ""
+  const data       = (params.data       as string) || ""
   const observacoes = (params.observacoes as string) || ""
+
+  // ── Estrutura dinâmica a partir dos dados reais ───────────────────────────
+  const estrutura = reconstruirEstrutura(dados)
 
   // ── Nota geral ────────────────────────────────────────────────────────────
   let soma = 0
@@ -81,7 +53,7 @@ export default function Detalhes() {
 
   let status = "REPROVADO"
   let statusColor = "#dc2626"
-  if (notaFinal >= 90) { status = "APROVADO"; statusColor = "#16a34a" }
+  if (notaFinal >= 90) { status = "APROVADO";  statusColor = "#16a34a" }
   else if (notaFinal >= 70) { status = "ATENÇÃO"; statusColor = "#f59e0b" }
 
   // ── Nota por seção ────────────────────────────────────────────────────────
@@ -120,12 +92,10 @@ export default function Detalhes() {
             .score-box h2 { font-size: 20px; margin-bottom: 4px; }
             .score-box .status { font-size: 16px; color: ${statusColor}; font-weight: bold; }
 
-            /* Críticos */
             .criticos { background: #fff1f2; border: 1px solid #fecaca; border-radius: 6px; padding: 14px; margin-bottom: 18px; page-break-inside: avoid; }
             .criticos h3 { color: #dc2626; font-size: 14px; margin-bottom: 8px; }
             .criticos p { font-size: 13px; color: #7f1d1d; margin: 3px 0; }
 
-            /* Resumo por seção */
             .secoes { margin-bottom: 18px; page-break-inside: avoid; }
             .secoes h3 { font-size: 14px; margin-bottom: 10px; color: #374151; }
             .secao-row { display: flex; align-items: center; margin-bottom: 6px; }
@@ -134,12 +104,10 @@ export default function Detalhes() {
             .bar-fill { height: 10px; border-radius: 4px; }
             .secao-pct { width: 40px; text-align: right; font-size: 12px; font-weight: bold; }
 
-            /* Itens */
             .secao { page-break-inside: avoid; margin-top: 22px; }
             .secao h3 { font-size: 14px; color: #374151; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
             .item { margin: 5px 0; font-size: 13px; }
 
-            /* Obs */
             .obs-box { page-break-inside: avoid; margin-top: 28px; padding: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; }
             .obs-box h3 { font-size: 14px; margin-bottom: 8px; color: #374151; }
             .obs-box p { font-size: 13px; white-space: pre-wrap; line-height: 1.6; }
@@ -150,10 +118,10 @@ export default function Detalhes() {
           <h1>Relatório de Auditoria</h1>
           <hr />
           <div class="meta">
-            ${loja        ? `<p><strong>Loja:</strong> ${loja}</p>`               : ""}
-            ${data        ? `<p><strong>Data:</strong> ${data}</p>`               : ""}
-            ${auditor     ? `<p><strong>Auditor:</strong> ${auditor}</p>`         : ""}
-            ${responsavel ? `<p><strong>Responsável:</strong> ${responsavel}</p>` : ""}
+            ${loja         ? `<p><strong>Loja:</strong> ${loja}</p>`               : ""}
+            ${data         ? `<p><strong>Data:</strong> ${data}</p>`               : ""}
+            ${auditor      ? `<p><strong>Auditor:</strong> ${auditor}</p>`         : ""}
+            ${responsavel  ? `<p><strong>Responsável:</strong> ${responsavel}</p>` : ""}
           </div>
 
           <div class="score-box">
