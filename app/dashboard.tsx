@@ -23,24 +23,33 @@ export default function Dashboard() {
   const [historico, setHistorico] = useState<Auditoria[]>([])
   const [tipoGrafico, setTipoGrafico] = useState<"linha" | "pizza">("linha")
   const [filtro, setFiltro] = useState<"hoje" | "7dias" | "30dias">("7dias")
+  const [erro, setErro] = useState("")
 
   useEffect(() => {
     carregar()
   }, [])
 
   async function carregar() {
-    const snapshot = await getDocs(collection(db, "auditorias"))
+    try {
+      setErro("")
+      const snapshot = await getDocs(collection(db, "auditorias"))
 
-    const lista: Auditoria[] = []
+      const lista: Auditoria[] = []
 
-    snapshot.forEach((doc) => {
-      lista.push({
-        id: doc.id,
-        ...doc.data(),
-      } as Auditoria)
-    })
+      snapshot.forEach((doc) => {
+        const d = doc.data()
+        lista.push({
+          id: doc.id,
+          ...d,
+          dados: d.dados || {},
+        } as Auditoria)
+      })
 
-    setHistorico(lista.reverse())
+      setHistorico(lista.reverse())
+    } catch (e: any) {
+      console.log("Erro ao carregar dashboard:", e)
+      setErro(e?.message || "Não foi possível carregar os dados.")
+    }
   }
 
   
@@ -120,6 +129,12 @@ export default function Dashboard() {
         <Text style={{ fontSize: 26, fontWeight: "bold", marginBottom: 20 }}>
           Dashboard 📈
         </Text>
+
+        {!!erro && (
+          <Text style={{ color: "#dc2626", marginBottom: 15 }}>
+            ⚠️ Erro ao carregar: {erro}
+          </Text>
+        )}
 
          
         <View style={{

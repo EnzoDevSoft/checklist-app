@@ -4,8 +4,9 @@ import { useFocusEffect, useRouter } from "expo-router"
 import { addDoc, collection } from "firebase/firestore"
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  Alert,
+  Alert as RNAlert,
   Animated,
+  Platform,
   SafeAreaView,
   ScrollView,
   Text,
@@ -14,6 +15,24 @@ import {
   View,
 } from "react-native"
 import Toast from "react-native-toast-message"
+
+// Alert.alert com botões não funciona no navegador (web); este helper cobre os dois casos
+const Alert = {
+  alert(titulo: string, msg?: string, botoes?: any[]) {
+    if (Platform.OS !== "web") {
+      RNAlert.alert(titulo, msg, botoes)
+      return
+    }
+    const texto = msg ? `${titulo}\n\n${msg}` : titulo
+    const acao = botoes?.find((b) => b.style !== "cancel")
+    if (botoes && botoes.length > 1) {
+      if (window.confirm(texto)) acao?.onPress?.()
+    } else {
+      window.alert(texto)
+      botoes?.[0]?.onPress?.()
+    }
+  },
+}
 
 function dataHoje() {
   const hoje = new Date()
@@ -119,16 +138,31 @@ export default function Checklist() {
           text: "Salvar",
           onPress: async () => {
             try {
-              await addDoc(collection(db, "auditorias"), {
-                loja,
-                data,
-                auditor,
-                responsavel,
-                preenchedor,
-                observacoes,
-                timestamp: new Date().toISOString(),
-                dados: { ...dados },
-              })
+              console.log("Salvando auditoria...")
+              await Promise.race([
+                addDoc(collection(db, "auditorias"), {
+                  loja,
+                  data,
+                  auditor,
+                  responsavel,
+                  preenchedor,
+                  observacoes,
+                  timestamp: new Date().toISOString(),
+                  dados: { ...dados },
+                }),
+                new Promise((_, reject) =>
+                  setTimeout(
+                    () =>
+                      reject(
+                        new Error(
+                          "Tempo esgotado ao falar com o Firebase. Verifique a internet e as regras do Firestore."
+                        )
+                      ),
+                    15000
+                  )
+                ),
+              ])
+              console.log("Auditoria salva!")
 
               Toast.show({
                 type: "success",

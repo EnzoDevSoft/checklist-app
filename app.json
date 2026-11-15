@@ -8,7 +8,6 @@
     "scheme": "checklistapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.enzo.checklist",
@@ -16,7 +15,6 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -27,11 +25,9 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
-
       "bundler": "metro",
       "name": "Checklist App",
       "shortName": "Checklist",
@@ -39,7 +35,6 @@
       "backgroundColor": "#ffffff",
       "themeColor": "#22c55e"
     },
-
     "plugins": [
       "expo-router",
       [
@@ -53,21 +48,19 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
-
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     },
-
     "extra": {
       "router": {},
       "eas": {
         "projectId": "3efee0d8-990f-4a19-9c7a-cfdec4b21a12"
       }
     },
-
     "owner": "enzoo_dev"
   }
 }

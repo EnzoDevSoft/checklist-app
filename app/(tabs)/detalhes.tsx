@@ -28,7 +28,12 @@ function reconstruirEstrutura(dados: Dados): Record<string, string[]> {
 
 export default function Detalhes() {
   const params = useLocalSearchParams()
-  const dados: Dados = JSON.parse(params.dados as string)
+  let dados: Dados = {}
+  try {
+    dados = JSON.parse((params.dados as string) || "{}")
+  } catch {
+    dados = {}
+  }
   const auditor    = (params.auditor    as string) || ""
   const responsavel = (params.responsavel as string) || ""
   const loja       = (params.loja       as string) || ""

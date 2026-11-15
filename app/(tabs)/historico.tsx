@@ -18,6 +18,7 @@ type Auditoria = {
   auditor?: string
   responsavel?: string
   preenchedor?: string
+  observacoes?: string
   timestamp?: string
   dados: Record<string, number>
 }
@@ -54,6 +55,7 @@ export default function Historico() {
   const [historico, setHistorico] = useState<Auditoria[]>([])
   const [filtro, setFiltro] = useState<"hoje" | "7dias" | "todos">("todos")
   const [lojaSelecionada, setLojaSelecionada] = useState("")
+  const [erro, setErro] = useState("")
   const router = useRouter()
 
   useFocusEffect(
@@ -75,6 +77,7 @@ export default function Historico() {
           data: data.data || "",
           auditor: data.auditor || "",
           responsavel: data.responsavel || "",
+          observacoes: data.observacoes || "",
           timestamp: data.timestamp || doc.id,
           dados: data.dados || {},
         } as Auditoria)
@@ -86,9 +89,11 @@ export default function Historico() {
         return bTime - aTime
       })
 
+      setErro("")
       setHistorico(lista)
-    } catch (error) {
+    } catch (error: any) {
       console.log("Erro ao carregar histórico:", error)
+      setErro(error?.message || "Não foi possível carregar o histórico.")
     }
   }
 const LOJAS_FIXAS = ["Aga Center Kan", "Vila Nova", "Barro Vermelho"]
@@ -174,6 +179,7 @@ const lojasUnicas = [
                   responsavel: item.responsavel || "",
                   loja: item.loja || "",
                   data: item.data || "",
+                  observacoes: item.observacoes || "",
                 },
               })
             }
@@ -195,6 +201,12 @@ const lojasUnicas = [
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f3f4f6" }}>
       <Text style={{ fontSize: 26, fontWeight: "bold", padding: 20 }}>Histórico 📊</Text>
+
+      {!!erro && (
+        <Text style={{ color: "#dc2626", marginHorizontal: 20, marginBottom: 10 }}>
+          ⚠️ Erro ao carregar: {erro}
+        </Text>
+      )}
 
       {/* Filtros */}
       <View style={{
